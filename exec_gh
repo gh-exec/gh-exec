@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+
+export GH_EXEC=1
+
+COMMAND_NAME="$(basename "$0")"
+VERSION="0.1.0"
+
+default_author="gh-exec"
+
+positional_args=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -c|--cache)
+      cache_flag="1"
+      shift 1
+      ;;
+    -h|--help)
+      echo "COMMAND: $COMMAND_NAME [-c|--cache] <REPO_NAME>"
+      exit 0
+      ;;
+    -v|--version)
+      echo "$COMMAND_NAME version $VERSION"
+      exit 0
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      positional_args+=("$1")
+      shift
+      ;;
+  esac
+done
+
+set -- "${positional_args[@]}"
+
+IFS=":" repo=(${positional_args[0]})
+repo_branch=${repo[1]}
+IFS="/" repo=(${repo[0]})
+if [[ -z "${repo[1]}" ]]; then
+  repo_name=${repo[0]}
+  repo_author=$default_author
+else
+  repo_name=${repo[1]}
+  repo_author=${repo[0]}
+fi
+
+cleanup() {
+  [[ -z "${cache_flag}" ]] && rm -rf "$local_repo_dir"
+}
+trap cleanup EXIT
+
+switchBranch() {
+  current_branch=$(git branch --show-current)
+  [[ "$current_branch" != "$1" ]] && git checkout $1
+}
+
+getEntryFile() {
+  if [[ -f "$local_repo_dir/__main__" ]]; then
+    echo "$local_repo_dir/__main__"
+  elif [[ -f "$local_repo_dir/__init__" ]]; then
+    echo "$local_repo_dir/__init__"
+  elif [[ -f "$local_repo_dir/__exec__" ]]; then
+    echo "$local_repo_dir/__exec__"
+  else
+    >&2 echo "Unable to find entry file"
+    exit 1
+  fi 
+}
+
+working_dir="$(pwd)"
+tmp_dir="/dev/shm/gh-exec"
+remote_repo_path="https://github.com/$repo_author/$repo_name"
+local_repo_dir="$tmp_dir/${repo_author}___$repo_name"
+
+mkdir -p "$tmp_dir"
+
+git clone "${remote_path}" "$local_repo_dir"
+cd "$local_repo_dir"
+switchBranch $repo_branch
+rm -rf .git
+chmod +x -R .
+cd "$working_dir"
+"$(getEntryFile)" ${positional_args[@]:1}
