@@ -77,10 +77,11 @@ local_repo_dir="$tmp_dir/${repo_author}___$repo_name"
 
 mkdir -p "$tmp_dir"
 
-git clone "${remote_path}" "$local_repo_dir"
+if [[ ! -d "$local_repo_dir" ]]; then
+  git clone "$remote_repo_path" "$local_repo_dir" 2> /dev/null
+  chmod +x -R "$local_repo_dir" >/dev/null 2>&1
+fi
 cd "$local_repo_dir"
-switchBranch $repo_branch
-rm -rf .git
-chmod +x -R .
+switchBranch $repo_branch >/dev/null 2>&1
 cd "$working_dir"
 "$(getEntryFile)" ${positional_args[@]:1}
